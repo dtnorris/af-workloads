@@ -1,0 +1,32 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require "optparse"
+
+ROOT = File.expand_path("..", __dir__)
+$LOAD_PATH.unshift File.join(ROOT, "lib")
+require "af_workloads"
+
+verify_only = false
+data_root = nil
+parser = OptionParser.new do |opts|
+  opts.banner = "Usage: bin/afw-score-job [--verify-only] CASE.yml"
+  opts.on("--data-root DIR") { |value| data_root = value }
+  opts.on("--verify-only") { verify_only = true }
+end
+
+begin
+  parser.parse!(ARGV)
+  case_path = ARGV.shift
+  raise OptionParser::MissingArgument, "CASE.yml" unless case_path
+  raise OptionParser::InvalidArgument, "unexpected arguments: #{ARGV.join(' ')}" unless ARGV.empty?
+
+  data_root ||= ENV["AFW_DATA_ROOT"] unless verify_only
+  if data_root || AFWorkloads::Roots.public_distribution?(ROOT)
+    data_root = AFWorkloads::Roots.data(data_root, code: ROOT)
+  end
+  AFWorkloads::ScorerAdapter.new(root: ROOT, data_root:, case_path:).run(verify_only: verify_only)
+rescue AFWorkloads::Error, OptionParser::ParseError => e
+  warn "ERROR: #{e.message}"
+  exit 1
+end

@@ -1,0 +1,62 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require "optparse"
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+require "af_workloads"
+
+data_root = nil
+begin
+  OptionParser.new do |parser|
+    parser.on("--data-root DIR") { |value| data_root = value }
+  end.parse!
+rescue OptionParser::ParseError => error
+  warn "ERROR: #{error.message}"
+  exit 2
+end
+
+valid_arguments = (ARGV.first == "publish" && ARGV.length == 3) ||
+                  (ARGV.first == "validate" && ARGV.length == 2)
+unless valid_arguments
+  warn "Usage: bin/afw-workload-evidence publish WORKLOAD_ID WLO_OUTPUT"
+  warn "       bin/afw-workload-evidence validate MANIFEST_PATH"
+  exit 2
+end
+
+begin
+  code_root = File.expand_path("..", __dir__)
+  split = data_root || AFWorkloads::Roots.public_distribution?(code_root)
+  root = split ? AFWorkloads::Roots.data(data_root, code: code_root) : ENV.fetch("AFW_ROOT", code_root)
+  if ARGV.first == "publish"
+    if split
+      %w[workloads build/workloads output/workloads].each { |path| AFWorkloads::Roots.owned(root, File.join(path, ARGV.fetch(1))) }
+    end
+    result = AFWorkloads::WorkloadEvidenceManifest.new(
+      root:, workload_id: ARGV.fetch(1), wlo_output: ARGV.fetch(2)
+    ).publish
+    puts JSON.pretty_generate(
+      "manifest_path" => Pathname.new(result.path).relative_path_from(Pathname.new(root)).to_s,
+      "manifest_id" => result.manifest_id,
+      "reused" => result.reused,
+      "evidence_complete" => result.evidence_complete,
+      "intended_cases" => result.intended_cases,
+      "receipt_count" => result.receipt_count,
+      "review_candidate_count" => result.candidate_count
+    )
+  else
+    document = AFWorkloads::WorkloadEvidenceManifest.validate!(
+      manifest_path: split ? AFWorkloads::Roots.owned(root, ARGV.fetch(1)) : File.expand_path(ARGV.fetch(1), root), afw_root: root
+    )
+    puts JSON.pretty_generate(
+      "manifest_id" => document.fetch("manifest_id"),
+      "evidence_complete" => document.dig("summary", "evidence_complete"),
+      "intended_cases" => document.dig("summary", "intended_cases"),
+      "receipt_count" => document.dig("summary", "receipt_count"),
+      "review_candidate_count" => document.dig("summary", "review_candidate_count")
+    )
+  end
+rescue AFWorkloads::Error => e
+  warn "ERROR: #{e.message}"
+  exit 1
+end

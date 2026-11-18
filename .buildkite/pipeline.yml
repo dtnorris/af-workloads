@@ -1,0 +1,5 @@
+steps:
+  - label: "AF Workloads contract"
+    key: afw-contract
+    timeout_in_minutes: 15
+    command: ".buildkite/test.sh"

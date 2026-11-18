@@ -1,0 +1,9 @@
+/workloads/
+/build/
+/output/
+/coverage/
+/.bundle/
+/vendor/bundle/
+.env
+.DS_Store
+*.swp
