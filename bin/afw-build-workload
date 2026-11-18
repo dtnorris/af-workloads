@@ -1,0 +1,110 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require "optparse"
+
+ROOT = File.expand_path("..", __dir__)
+$LOAD_PATH.unshift File.join(ROOT, "lib")
+require "af_workloads"
+
+options = { ids: [], dimensions: [], worker: nil, scorer_repo: nil, context: nil, gpu_resident: false,
+            plan_version: nil, minimum_context: nil, gpu_id: nil, staged_mode: "production" }
+parser = OptionParser.new do |opts|
+  opts.banner = "Usage: bin/afw-build-workload --workload ID --catalog FILE.xlsx --ids ADV-XXXX[,ADV-YYYY] [options]"
+  opts.on("--data-root DIR") { |value| options[:data_root] = value }
+  opts.on("--workload ID") { |value| options[:workload] = value }
+  opts.on("--catalog FILE") { |value| options[:catalog] = value }
+  opts.on("--ids IDS") { |value| options[:ids] << value }
+  opts.on("--dimension NAME") { |value| options[:dimensions] << value }
+  opts.on("--wlo-plan-version VERSION", %w[0.2 0.3 0.4],
+          "Plan contract (default: 0.3; 0.4 enables explicit minimum context)") { |value| options[:plan_version] = value }
+  opts.on("--worker NAME", "Legacy v0.1 plan only; omit for provider-neutral plans") { |value| options[:worker] = value }
+  opts.on("--scorer-repo DIR") { |value| options[:scorer_repo] = value }
+  opts.on("--scorer-config FILE", "Explicit scorer roots and optional source registry (YAML)") { |value| options[:scorer_config] = value }
+  opts.on("--required-context-length N", Integer, "Freeze context capability in a new logical plan") { |value| options[:context] = value }
+  opts.on("--minimum-context-length N", Integer, "Minimum observed context; requires --wlo-plan-version 0.4") { |value| options[:minimum_context] = value }
+  opts.on("--require-fully-gpu-resident", "Require full GPU residency; pair with explicit context length") { options[:gpu_resident] = true }
+  opts.on("--required-gpu-id ID", "Capability requirement only when this exact GPU identity is necessary") { |value| options[:gpu_id] = value }
+  opts.on("--staged-authority-inputs FILE") { |value| options[:staged_inputs] = value }
+  opts.on("--staged-authority-store DIR") { |value| options[:staged_store] = value }
+  opts.on("--staged-project-state FILE") { |value| options[:staged_state] = value }
+  opts.on("--staged-operation UUID") { |value| options[:staged_operation] = value }
+  opts.on("--staged-pipeline-root DIR") { |value| options[:staged_pipeline] = value }
+  opts.on("--staged-authority-mode MODE", %w[production synthetic]) { |value| options[:staged_mode] = value }
+end
+
+begin
+  parser.parse!(ARGV)
+  raise OptionParser::MissingArgument, "--workload ID" if options[:workload].to_s.empty?
+  raise OptionParser::MissingArgument, "--catalog FILE" if options[:catalog].to_s.empty?
+  raise OptionParser::MissingArgument, "--ids IDS" if options[:ids].empty?
+  raise OptionParser::InvalidArgument, "unexpected arguments: #{ARGV.join(' ')}" unless ARGV.empty?
+  split = options.key?(:data_root) || AFWorkloads::Roots.public_distribution?(ROOT)
+  data_root = AFWorkloads::Roots.data(options[:data_root], code: ROOT) if split
+  staged_keys = %i[staged_inputs staged_store staged_state staged_operation]
+  supplied = staged_keys.select { |key| options[key] }
+  unless supplied.empty? || supplied.length == staged_keys.length
+    missing = staged_keys - supplied
+    flags = {
+      staged_inputs: "--staged-authority-inputs", staged_store: "--staged-authority-store",
+      staged_state: "--staged-project-state", staged_operation: "--staged-operation"
+    }
+    raise OptionParser::MissingArgument, "staged mode also requires #{missing.map { |key| flags.fetch(key) }.join(', ')}"
+  end
+  staged_scoring = unless supplied.empty?
+                     if split && options[:staged_pipeline].to_s.empty?
+                       raise OptionParser::MissingArgument, "--staged-pipeline-root DIR"
+                     end
+                     {
+                       pipeline_root: options[:staged_pipeline] || ENV["AF_DATA_PIPELINE_ROOT"] || File.expand_path("../af-data-pipeline", ROOT),
+                       inputs_path: options.fetch(:staged_inputs), store_root: options.fetch(:staged_store),
+                       project_state_path: options.fetch(:staged_state), operation_id: options.fetch(:staged_operation),
+                       mode: options.fetch(:staged_mode)
+                     }
+                   end
+
+  path = AFWorkloads::WorkloadCompiler.new(
+    root: ROOT,
+    data_root:,
+    workload_id: options.fetch(:workload),
+    catalog_path: options.fetch(:catalog),
+    ids: options.fetch(:ids),
+    dimensions: options.fetch(:dimensions),
+    scorer_repo: options.fetch(:scorer_repo),
+    scorer_config: options[:scorer_config],
+    worker_name: options.fetch(:worker),
+    plan_version: options.fetch(:plan_version),
+    required_context_length: options.fetch(:context),
+    minimum_context_length: options.fetch(:minimum_context),
+    require_fully_gpu_resident: options.fetch(:gpu_resident),
+    required_gpu_id: options.fetch(:gpu_id),
+    staged_scoring:
+  ).build
+  puts "PREPARED: #{path}"
+  puts "No model inference was run."
+
+  wlo_root = File.expand_path("../workload-orchestrator", ROOT)
+  plan_path = File.join(path, "execution-plan.json")
+  workers_config = File.join(wlo_root, "config", "workers.yml")
+  puts
+  if options[:worker].nil? && options[:plan_version] != "0.2"
+    puts "Dynamic WLO handoff: #{plan_path}"
+    puts "Use one execution with WLO's dynamic worker registry; AFW emits no placement profile."
+    puts "Adventure groups set priority/reporting; all forward scoring jobs are independent."
+  else
+    puts "Next command (zero inference):"
+    puts "  cd #{wlo_root}"
+    puts "  #{File.join(wlo_root, %q{bin}, %q{wlo})} plan \\"
+    puts "    #{plan_path} \\"
+    puts "    --workdir #{ROOT} \\"
+    puts "    --workers-config #{workers_config}#{options[:worker] ? '' : ' \\'}"
+    unless options[:worker]
+      puts "    --execution-profile /path/to/execution-profile.json"
+      puts "Create that WLO profile with one mapping per logical pool; see WLO docs/execution-profile-v0.1.md."
+    end
+  end
+rescue AFWorkloads::Error, OptionParser::ParseError => e
+  warn "ERROR: #{e.message}"
+  warn parser if e.is_a?(OptionParser::ParseError)
+  exit 1
+end

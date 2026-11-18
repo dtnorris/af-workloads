@@ -1,0 +1,39 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require "optparse"
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+require "af_workloads"
+
+begin
+  action = ARGV.shift
+  code_root = File.expand_path("..", __dir__)
+  options = {}
+  OptionParser.new do |o|
+    o.on("--data-root DIR") { |v| options[:data_root] = v }
+    o.on("--root DIR") { |v| options[:root] = v }
+    o.on("--scorer-repo DIR") { |v| options[:scorer_repo] = v }
+    o.on("--scorer-config FILE") { |v| options[:scorer_config] = v }
+    o.on("--authority FILE") { |v| options[:authority] = v }
+    o.on("--catalog FILE") { |v| options[:catalog] = v }
+    o.on("--selection FILE") { |v| options[:selection] = v }
+    o.on("--workload-paths FILE") { |v| options[:paths] = v }
+    o.on("--workload-binding FILE") { |v| options[:binding] = v }
+  end.parse!
+  raise AFWorkloads::Error, "verify requires authority, catalog, selection and scorer root" unless action == "verify" && ARGV.empty? && %i[authority catalog selection scorer_repo].all? { |k| options[k] }
+  if options.key?(:data_root) || AFWorkloads::Roots.public_distribution?(code_root)
+    raise AFWorkloads::Error, "select one data root" if options[:data_root] && options[:root]
+    data_root = AFWorkloads::Roots.data(options[:data_root] || options[:root], code: code_root)
+  else
+    code_root = options[:root] || code_root
+  end
+  result = AFWorkloads::StagedSelection.new(root: code_root, data_root:, scorer_repo: options[:scorer_repo], scorer_config: options[:scorer_config]).verify!(
+    authority: JSON.parse(File.binread(options[:authority])), catalog_path: options[:catalog], selection_path: options[:selection],
+    workload_paths: options[:paths] && JSON.parse(File.binread(options[:paths])),
+    binding: options[:binding] && JSON.parse(File.binread(options[:binding]))
+  )
+  puts JSON.generate(result)
+rescue AFWorkloads::Error, AdventureIngest::Error, OptionParser::ParseError, SystemCallError, JSON::ParserError, Psych::Exception, KeyError, TypeError => e
+  warn JSON.generate("error" => {"code" => "INVALID_AFW_SELECTION", "message" => e.message})
+  exit 2
+end

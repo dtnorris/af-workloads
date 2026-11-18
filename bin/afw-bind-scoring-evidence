@@ -1,0 +1,49 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require "optparse"
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+require "af_workloads"
+
+data_root = nil
+begin
+  OptionParser.new do |parser|
+    parser.on("--data-root DIR") { |value| data_root = value }
+  end.parse!
+rescue OptionParser::ParseError => error
+  warn "ERROR: #{error.message}"
+  exit 2
+end
+
+unless [2, 3].include?(ARGV.length)
+  warn "Usage: bin/afw-bind-scoring-evidence WORKLOAD_ID WLO_OUTPUT [JOB_ID]"
+  exit 2
+end
+
+begin
+  code_root = File.expand_path("..", __dir__)
+  split = data_root || AFWorkloads::Roots.public_distribution?(code_root)
+  root = split ? AFWorkloads::Roots.data(data_root, code: code_root) : ENV.fetch("AFW_ROOT", code_root)
+  if split
+    %w[workloads build/workloads output/workloads].each { |path| AFWorkloads::Roots.owned(root, File.join(path, ARGV.fetch(0))) }
+  end
+  if ARGV.length == 2
+    result = AFWorkloads::WorkloadScoringEvidence.new(
+      root: root, workload_id: ARGV.fetch(0), wlo_output: ARGV.fetch(1)
+    ).bind
+    puts JSON.pretty_generate(result)
+    exit(result.fetch("fully_evidenced") ? 0 : 1)
+  else
+    path = AFWorkloads::ScoringEvidence.new(
+      root: root,
+      workload_id: ARGV.fetch(0),
+      wlo_output: ARGV.fetch(1),
+      job_id: ARGV.fetch(2)
+    ).write
+    puts "Evidence receipt: #{path}"
+  end
+rescue AFWorkloads::Error => e
+  warn "ERROR: #{e.message}"
+  exit 1
+end

@@ -1,0 +1,35 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require "optparse"
+
+ROOT = File.expand_path("..", __dir__)
+$LOAD_PATH.unshift File.join(ROOT, "lib")
+require "af_workloads"
+
+options = {}
+parser = OptionParser.new do |opts|
+  opts.banner = "Usage: bin/afw-verify-staged-workload --workload ID"
+  opts.on("--data-root DIR") { |value| options[:data_root] = value }
+  opts.on("--workload ID") { |value| options[:workload] = value }
+end
+
+begin
+  parser.parse!(ARGV)
+  raise OptionParser::MissingArgument, "--workload ID" if options[:workload].to_s.empty?
+  raise OptionParser::InvalidArgument, "unexpected arguments: #{ARGV.join(' ')}" unless ARGV.empty?
+  root = ROOT
+  if options.key?(:data_root) || AFWorkloads::Roots.public_distribution?(ROOT)
+    root = AFWorkloads::Roots.data(options[:data_root], code: ROOT)
+    AFWorkloads::Roots.owned(root, File.join("workloads", options.fetch(:workload), "staged-scoring.json"))
+  end
+  document = AFWorkloads::StagedScoringInput.verify_workload!(root:, workload_id: options.fetch(:workload))
+  puts "VERIFIED #{options.fetch(:workload)}"
+  puts "Authority: #{document.dig('binding', 'authority_id')}"
+  puts "Operation: #{document.dig('binding', 'operation_id')}"
+  puts "No inference or catalog adoption was performed."
+rescue AFWorkloads::Error, OptionParser::ParseError => e
+  warn "ERROR: #{e.message}"
+  warn parser if e.is_a?(OptionParser::ParseError)
+  exit 1
+end

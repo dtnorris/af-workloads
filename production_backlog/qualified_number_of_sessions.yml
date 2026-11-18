@@ -1,0 +1,14 @@
+version: 1
+contract_type: nos_local_qualified_v1
+dimension: "# of Sessions"
+slug: nos
+profile: nos-clean-blind-v1
+catalog_column: Number of Sessions
+model_alias: qwen27
+ollama_model: qwen3.6:27b
+qualified_scorer_baseline: 4fcd7fe84d56354a2bc22d9b815b9f170d7223ad
+afao_version: "1.6"
+max_page_count_exclusive: 100
+replicates: 1
+external_api_cost_usd: 0.0
+no_favorable_rerun: true
