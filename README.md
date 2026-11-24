@@ -17,6 +17,14 @@ Use Ruby 4.0, Bundler 4.0.17 and Git. From this distribution run
 - An existing writable AFW data directory outside this code directory. Select it
   with `--data-root` even when the current directory is already the store.
 
+**Pulling models for scoring.** Find your model in [the model registry](config/models.yml)
+and run `ollama pull <pull_model>`, including the publisher prefix when listed.
+Before scoring, check the pulled model's full `digest` in Ollama's
+[`GET /api/tags` response](https://docs.ollama.com/api/tags) against
+`qualified_manifest_sha256`. Continue only on an exact match. If the tag moves
+or disappears, search for the first 12 characters of the pinned digest to find
+another tag, then verify the full digest again.
+
 The [operator runbook](docs/operator-runbook.md) shows compilation and uncached
 verify-only replay. The [forward workload contract](docs/AFW_FORWARD_WORKLOADS.md)
 covers relative paths, staged approval, WLO and evidence ownership. The

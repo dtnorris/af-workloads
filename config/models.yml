@@ -9,7 +9,7 @@ models:
     ollama_model: glm-4.7-flash
   gemma:
     ollama_model: gemma4:26b
-    pull_model: gemma4:26b-a4b-it-mtp-q4_K_M
+    pull_model: dhiltgen/gemma4:26b-a4b-it-mtp-q4_K_M-llamacpp
     qualified_manifest_sha256: 08ae7ec1744bd7f451c4a530afb39d2673ad9d07a8369b8a33a3613b41212a68
   qwen:
     ollama_model: qwen3.6:35b-a3b
@@ -17,7 +17,7 @@ models:
     qualified_manifest_sha256: 07d35212591fc27746f0a317c975a6d68754fb38e9053d82e25f06057af28522
   qwen27:
     ollama_model: qwen3.6:27b
-    pull_model: dhiltgen/qwen3.6:27b-q4_K_M
+    pull_model: qwen3.6:27b-q4_K_M
     qualified_manifest_sha256: 3a40c32f1450b8380412898385b0e00df5d6d2d801dd192ca1acb7e735cd050e
   nemotron:
     ollama_model: nemotron-3-nano:30b
