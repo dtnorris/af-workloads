@@ -3,6 +3,13 @@
 Adventure Finder Workloads (AFW) turns selected adventures and scoring dimensions
 into frozen cases and an execution plan for [Workload Orchestrator (WLO)](https://github.com/dtnorris/workload-orchestrator).
 
+**Using AFW with your own library?** Clone this public `af-workloads` repository
+for the tools. Create a private companion repository named `af-workloads-data`
+in your own account or organization for workload manifests, execution plans,
+generated cases, and scoring evidence. Pass the path to its checkout as
+`--data-root`. For a local trial, you can use an existing writable directory
+outside the code checkout. See [Adventure Finder’s private repository setup](https://github.com/dtnorris/adventure-finder#set-up-your-own-private-repositories).
+
 ## How AF Workloads works
 
 ```mermaid
@@ -43,12 +50,10 @@ Use Ruby 4.0, Bundler 4.0.17 and Git. From this distribution run
 - [AF Specification](https://github.com/dtnorris/af-specification-md) at
   `394a44c2c2052ce2eeb6d28cd7647ad8a50acfcf`.
 - A catalog workbook, a source registry, and the source files it names.
-- An existing writable directory outside the code checkout. Select it with
-  `--data-root`, even when you are already in that directory. For your own
-  Adventure Finder library, use your private `af-workloads-data` checkout.
-  AFW writes manifests and execution plans under `workloads/`, generated cases
-  under `build/workloads/`, and results and evidence under `output/workloads/`.
-  See [private repository setup](https://github.com/dtnorris/adventure-finder#set-up-your-own-private-repositories).
+- A separate writable data root, selected explicitly with `--data-root` even
+  when it is the current directory. AFW writes manifests and plans under
+  `workloads/`, generated cases under `build/workloads/`, and results and
+  evidence under `output/workloads/`.
 
 **Compile and verify offline.** Follow the [operator runbook](docs/operator-runbook.md)
 with the inputs above and an explicit scorer configuration. Compilation writes
