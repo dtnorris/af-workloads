@@ -27,10 +27,11 @@ flowchart TD
     evidence --> manifest
 ```
 
-You can compile a workload and reach `VERIFIED` before pulling a model. AFW
-re-runs scorer preflight against the frozen case. For scoring evidence, run the
-plan through WLO, then give AFW the attempt output to bind the results to the
-workload and publish a manifest for review.
+The public example ends at `VERIFIED`: AFW reproduced scorer preflight from
+the frozen inputs. You can reach this point before pulling a model. Live
+scoring requires separate qualification for this public method. Until then,
+the adapter refuses to execute it. For a qualified and authorized run, WLO
+records the attempt and AFW binds its results to the frozen workload.
 
 ## Setup
 
@@ -42,8 +43,12 @@ Use Ruby 4.0, Bundler 4.0.17 and Git. From this distribution run
 - [AF Specification](https://github.com/dtnorris/af-specification-md) at
   `394a44c2c2052ce2eeb6d28cd7647ad8a50acfcf`.
 - A catalog workbook, a source registry, and the source files it names.
-- An existing writable AFW data directory outside this code directory. Select it
-  with `--data-root` even when the current directory is already the store.
+- An existing writable directory outside the code checkout. Select it with
+  `--data-root`, even when you are already in that directory. For your own
+  Adventure Finder library, use your private `af-workloads-data` checkout.
+  AFW writes manifests and execution plans under `workloads/`, generated cases
+  under `build/workloads/`, and results and evidence under `output/workloads/`.
+  See [private repository setup](https://github.com/dtnorris/adventure-finder#set-up-your-own-private-repositories).
 
 **Compile and verify offline.** Follow the [operator runbook](docs/operator-runbook.md)
 with the inputs above and an explicit scorer configuration. Compilation writes
@@ -60,10 +65,15 @@ Before scoring, check the pulled model's full `digest` in Ollama's
 or disappears, search for the first 12 characters of the pinned digest to find
 another tag, then verify the full digest again.
 
-The [forward workload contract](docs/AFW_FORWARD_WORKLOADS.md)
-covers relative paths, staged approval, WLO and evidence ownership. The
-[EE profile](docs/MDL-01_EE_ADOPTION.md) records requirements for the first
-supported offline example.
+## Guides
+
+| Reader question | Guide |
+| --- | --- |
+| How do I compile a workload and verify a case offline? | [Operator runbook](docs/operator-runbook.md) |
+| Where are the plan, cases, and results stored? When can I reuse or regenerate a workload? | [Workload layout, inspection, and recovery](docs/AFW_FORWARD_WORKLOADS.md) |
+| Why did replay refuse a case after an input changed? | [Frozen input identities](docs/frozen-input-identities.md) |
+| Which settings are frozen into a job, and who chooses the Ollama endpoint? | [Scorer environment and worker placement](docs/scorer-environment.md) |
+| Which model and settings does the Exploration Emphasis example use, and what is qualified? | [Exploration Emphasis profile](docs/MDL-01_EE_ADOPTION.md) |
 
 ## Validate
 
