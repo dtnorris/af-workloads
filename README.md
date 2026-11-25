@@ -1,8 +1,36 @@
 # AF Workloads
 
-AF Workloads compiles scoring intent into immutable workload manifests and WLO
-execution plans. It can verify a generated case offline and bind scoring evidence
-from a separately owned WLO attempt.
+Adventure Finder Workloads (AFW) turns selected adventures and scoring dimensions
+into frozen cases and an execution plan for [Workload Orchestrator (WLO)](https://github.com/dtnorris/workload-orchestrator).
+
+## How AF Workloads works
+
+```mermaid
+flowchart TD
+    inputs["Catalog, source registry, Markdown and scorer configuration"]
+    compiler["WorkloadCompiler"]
+    cases["Frozen workload and generated cases"]
+    plan["execution-plan.json"]
+    verify["ScorerAdapter in verify-only mode"]
+    wlo["Workload Orchestrator"]
+    evidence["Bind scoring evidence"]
+    manifest["Workload evidence manifest for review"]
+
+    inputs --> compiler
+    compiler --> cases
+    compiler --> plan
+    cases --> verify
+    verify -->|Preflight reproduces| verified["VERIFIED"]
+    plan -->|Separately authorized execution| wlo
+    cases --> evidence
+    wlo -->|Attempt output| evidence
+    evidence --> manifest
+```
+
+You can compile a workload and reach `VERIFIED` before pulling a model. AFW
+re-runs scorer preflight against the frozen case. For scoring evidence, run the
+plan through WLO, then give AFW the attempt output to bind the results to the
+workload and publish a manifest for review.
 
 ## Setup
 
