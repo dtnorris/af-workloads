@@ -17,6 +17,13 @@ Use Ruby 4.0, Bundler 4.0.17 and Git. From this distribution run
 - An existing writable AFW data directory outside this code directory. Select it
   with `--data-root` even when the current directory is already the store.
 
+**Compile and verify offline.** Follow the [operator runbook](docs/operator-runbook.md)
+with the inputs above and an explicit scorer configuration. Compilation writes
+a frozen workload and `execution-plan.json` beneath your AFW data root.
+Verify-only replay prints `VERIFIED` when the case reproduces. These steps run
+before model acquisition. To explore the scorer on its own, use its
+[standalone offline walkthrough](https://github.com/dtnorris/af-scorer/blob/278aa45042d09366b130f169bcf940c8202acc03/README.md#offline-first-operation).
+
 **Pulling models for scoring.** Find your model in [the model registry](config/models.yml)
 and run `ollama pull <pull_model>`, including the publisher prefix when listed.
 Before scoring, check the pulled model's full `digest` in Ollama's
@@ -25,8 +32,7 @@ Before scoring, check the pulled model's full `digest` in Ollama's
 or disappears, search for the first 12 characters of the pinned digest to find
 another tag, then verify the full digest again.
 
-The [operator runbook](docs/operator-runbook.md) shows compilation and uncached
-verify-only replay. The [forward workload contract](docs/AFW_FORWARD_WORKLOADS.md)
+The [forward workload contract](docs/AFW_FORWARD_WORKLOADS.md)
 covers relative paths, staged approval, WLO and evidence ownership. The
 [EE profile](docs/MDL-01_EE_ADOPTION.md) records requirements for the first
 supported offline example.
